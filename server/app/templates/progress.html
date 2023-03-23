@@ -1,0 +1,47 @@
+<style>
+  div {
+    margin-top: 50px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  h2 {
+    font-size: 24px;
+    font-weight: bold;
+    color: #666;
+    margin-bottom: 10px;
+  }
+  p {
+    font-size: 16px;
+    color: #666;
+    margin-top: 20px;
+  }
+  #progress_update {
+    font-size: 48px;
+    font-weight: bold;
+    color: #007bff;
+  }
+</style>
+
+<div style="text-align: center">
+  <h1>Report is being generated...</h1>
+  <h2>Progress: <span id="progress_update">0</span>%</h2>
+  <p>Please wait until the report is ready to download.</p>
+</div>
+<script>
+  var socket = new WebSocket("ws://{{ websocket_host }}/ws/{{ report_id }}");
+  socket.onmessage = function (event) {
+    {
+      document.getElementById("progress_update").innerHTML = event.data;
+      if (event.data === "100") {
+        window.location.reload();
+      }
+    }
+  };
+</script>

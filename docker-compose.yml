@@ -1,0 +1,97 @@
+version: "3.5"
+
+services:
+  traefik:
+    image: traefik:v1.7-alpine
+    container_name: traefik
+    command: >
+      --logLevel='INFO' --web --InsecureSkipVerify=true --defaultentrypoints=https,http --entryPoints='Name:http Address::80' --entryPoints='Name:https Address::443 TLS Redirect.EntryPoint:http' --retry --docker --docker.endpoint='unix:///var/run/docker.sock' --docker.exposedbydefault=true --docker.watch=true
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.port=8080"
+      - "traefik.frontend.rule=Host:localhost"
+      - "traefik.protocol=http"
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "3"
+    networks:
+      - docker_net
+
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    volumes:
+      - data-mongo:/data/db
+    ports:
+      - "27017:27017"
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "3"
+    labels:
+      - "traefik.port=27017"
+      - "traefik.frontend.rule=Host:db.localhost"
+      - "traefik.protocol=http"
+    networks:
+      - docker_net
+
+  redis:
+    image: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "3"
+    labels:
+      - "traefik.port=6379"
+      - "traefik.frontend.rule=Host:redis.localhost"
+      - "traefik.protocol=http"
+    networks:
+      - docker_net
+
+  server:
+    container_name: server
+    logging:
+      options:
+        max-size: "50m"
+        max-file: "3"
+    environment:
+      - MODE=sandbox
+      - MONGO_HOST=mongodb
+      - MONGO_PORT=27017
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MONGO_DATABASE=store
+      - IMPORT_CSV_TO_MONGODB=false
+      - WEBSOCKET_HOST=api.localhost
+      - DEBUG=true
+    ports:
+      - "3000:80"
+    labels:
+      - "traefik.port=80"
+      - "traefik.frontend.rule=Host:api.localhost"
+      - "traefik.protocol=http"
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    volumes:
+      - "./server/app:/app/app"
+    command: [ "/start-reload.sh" ]
+    networks:
+      - docker_net
+
+networks:
+  docker_net:
+
+
+volumes:
+  data-mongo:

@@ -2,11 +2,10 @@ import hashlib
 import math
 from datetime import datetime, timedelta
 from itertools import groupby
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import pytz
 from app.config.constants import (
-    ACTIVE,
     BATCH_SIZE,
     DAY,
     DEBUG,
@@ -14,7 +13,6 @@ from app.config.constants import (
     DEFAULT_START_HOURS_SHOP,
     DEFAULT_TIMEZONE,
     HOUR,
-    INACTIVE,
     NDIGITS,
     NUMBER_OF_DAYS_TO_BE_REMOVED_FROM_TODAY,
     STORE_HOURS_DATA,
@@ -126,7 +124,9 @@ async def get_store_hours_data(
     return store_hours
 
 
-def total_seconds_between_datetimes(datetimes: List[datetime]) -> float:
+def total_seconds_between_datetimes(
+    datetimes: List[datetime],
+) -> Tuple[timedelta, timedelta]:
     """
     Calculates the total time difference in seconds between each consecutive pair of datetime objects in a list.
 
@@ -134,50 +134,46 @@ def total_seconds_between_datetimes(datetimes: List[datetime]) -> float:
         datetimes: A list of datetime objects.
 
     Returns:
-        The total time difference in seconds between each consecutive pair of datetime objects in the input list.
+        A tuple of two timedeltas representing the total uptime and downtime, respectively.
     """
-    total_seconds: float = 0.0
-    for i in range(len(datetimes) - 1):
-        total_seconds += (datetimes[i + 1] - datetimes[i]).total_seconds()
-    return total_seconds
+    uptime = timedelta()
+    downtime = timedelta()
+
+    for current, next in zip(datetimes, datetimes[1:]):
+        curr_status = current["status"]
+        time_diff = next["timestamp_utc"] - current["timestamp_utc"]
+
+        if curr_status == "active":
+            uptime += time_diff
+        else:
+            downtime += time_diff
+
+    return uptime, downtime
 
 
 def calculate_uptime_downtime(
-    store_active_last_hour: List[datetime],
-    store_inactive_last_hour: List[datetime],
-    store_active_last_day: List[datetime],
-    store_inactive_last_day: List[datetime],
-    store_active_last_week: List[datetime],
-    store_inactive_last_week: List[datetime],
+    store_last_hour: List[datetime],
+    store_last_day: List[datetime],
+    store_last_week: List[datetime],
 ) -> Dict[str, float]:
     """
     Calculates the uptime and downtime durations for a store over the last hour, day, and week.
 
-    Parameters:
-    -----------
-    store_active_last_hour: List[datetime]
-        A list of datetime objects representing the times when the store was active during the last hour.
-    store_inactive_last_hour: List[datetime]
-        A list of datetime objects representing the times when the store was inactive during the last hour.
-    store_active_last_day: List[datetime]
-        A list of datetime objects representing the times when the store was active during the last day.
-    store_inactive_last_day: List[datetime]
-        A list of datetime objects representing the times when the store was inactive during the last day.
-    store_active_last_week: List[datetime]
-        A list of datetime objects representing the times when the store was active during the last week.
-    store_inactive_last_week: List[datetime]
-        A list of datetime objects representing the times when the store was inactive during the last week.
+    Args:
+        store_last_hour: A list of datetime objects representing the times when the store was active/inactive during the last hour.
+        store_last_day: A list of datetime objects representing the times when the store was active/inactive during the last day.
+        store_last_week: A list of datetime objects representing the times when the store was active/inactive during the last week.
 
     Returns:
-    A dictionary with uptime and downtime information
-    --------
+        A dictionary with uptime and downtime information.
     """
-    uptime_last_hour = total_seconds_between_datetimes(store_active_last_hour)
-    downtime_last_hour = total_seconds_between_datetimes(store_inactive_last_hour)
-    uptime_last_day = total_seconds_between_datetimes(store_active_last_day)
-    downtime_last_day = total_seconds_between_datetimes(store_inactive_last_day)
-    uptime_last_week = total_seconds_between_datetimes(store_active_last_week)
-    downtime_last_week = total_seconds_between_datetimes(store_inactive_last_week)
+    uptime_last_hour, downtime_last_hour = total_seconds_between_datetimes(
+        store_last_hour
+    )
+    uptime_last_day, downtime_last_day = total_seconds_between_datetimes(store_last_day)
+    uptime_last_week, downtime_last_week = total_seconds_between_datetimes(
+        store_last_week
+    )
     return dict(
         uptime_last_hour=uptime_last_hour,
         downtime_last_hour=downtime_last_hour,
@@ -316,12 +312,12 @@ async def trigger_report_generation(report_id: str, request: Request):
                 uptime_downtime_pipeline
             )
             store_status_history_week = await store_status_history.to_list(length=None)
-            uptime_last_hour: float = 0
-            uptime_last_week: float = 0
-            downtime_last_hour: float = 0
-            uptime_last_day: float = 0
-            downtime_last_day: float = 0
-            downtime_last_week: float = 0
+            uptime_last_hour: timedelta = timedelta()
+            uptime_last_week: timedelta = timedelta()
+            downtime_last_hour: timedelta = timedelta()
+            uptime_last_day: timedelta = timedelta()
+            downtime_last_day: timedelta = timedelta()
+            downtime_last_week: timedelta = timedelta()
             for group_k, group_values in groupby(
                 store_status_history_week, key=lambda x: x["filter"]
             ):
@@ -332,40 +328,10 @@ async def trigger_report_generation(report_id: str, request: Request):
                 store_status_history_day: List[
                     Dict[str, any]
                 ] = filter_records_by_timestamp(history_records, day_tz_compare)
-
-                store_active_last_hour: List[
-                    datetime
-                ] = get_active_inactive_store_records(store_status_history_hour, ACTIVE)
-
-                store_inactive_last_hour: List[
-                    datetime
-                ] = get_active_inactive_store_records(
-                    store_status_history_hour, INACTIVE
-                )
-                store_active_last_day: List[
-                    datetime
-                ] = get_active_inactive_store_records(store_status_history_day, ACTIVE)
-
-                store_inactive_last_day: List[
-                    datetime
-                ] = get_active_inactive_store_records(
-                    store_status_history_day, INACTIVE
-                )
-
-                store_active_last_week: List[
-                    datetime
-                ] = get_active_inactive_store_records(history_records, ACTIVE)
-
-                store_inactive_last_week: List[
-                    datetime
-                ] = get_active_inactive_store_records(history_records, INACTIVE)
                 uptime_downtime_data: Dict[str, float] = calculate_uptime_downtime(
-                    store_active_last_hour=store_active_last_hour,
-                    store_inactive_last_hour=store_inactive_last_hour,
-                    store_active_last_day=store_active_last_day,
-                    store_inactive_last_day=store_inactive_last_day,
-                    store_active_last_week=store_active_last_week,
-                    store_inactive_last_week=store_inactive_last_week,
+                    store_last_hour=store_status_history_hour,
+                    store_last_day=store_status_history_day,
+                    store_last_week=history_records,
                 )
                 uptime_last_hour += uptime_downtime_data.get("uptime_last_hour", 0.0)
                 downtime_last_hour += uptime_downtime_data.get(
@@ -377,15 +343,26 @@ async def trigger_report_generation(report_id: str, request: Request):
                 downtime_last_week += uptime_downtime_data.get(
                     "downtime_last_week", 0.0
                 )
-
             report_data = {
                 "store_id": store_id,
-                "uptime_last_hour": round(uptime_last_hour / 60, NDIGITS),
-                "uptime_last_day": round(uptime_last_day / 3600, NDIGITS),
-                "uptime_last_week": round(uptime_last_week / 3600, NDIGITS),
-                "downtime_last_hour": round(downtime_last_hour / 60, NDIGITS),
-                "downtime_last_day": round(downtime_last_day / 3600, NDIGITS),
-                "downtime_last_week": round(downtime_last_week / 3600, NDIGITS),
+                "uptime_last_hour": round(
+                    uptime_last_hour.total_seconds() / 60, NDIGITS
+                ),
+                "uptime_last_day": round(
+                    uptime_last_day.total_seconds() / 3600, NDIGITS
+                ),
+                "uptime_last_week": round(
+                    uptime_last_week.total_seconds() / 3600, NDIGITS
+                ),
+                "downtime_last_hour": round(
+                    downtime_last_hour.total_seconds() / 60, NDIGITS
+                ),
+                "downtime_last_day": round(
+                    downtime_last_day.total_seconds() / 3600, NDIGITS
+                ),
+                "downtime_last_week": round(
+                    downtime_last_week.total_seconds() / 3600, NDIGITS
+                ),
             }
             await request.app.mongodb[report_collection_name].insert_one(report_data)
         percentage_completed = math.ceil(

@@ -15,13 +15,11 @@ STORE_TIMEZONE_DATA = "store_timezone_data"
 DEFAULT_TIMEZONE = "America/Chicago"
 DEFAULT_START_HOURS_SHOP = "00:00:00"
 DEFAULT_END_HOURS_SHOP = "23:59:59"
-NUMBER_OF_DAYS_TO_BE_REMOVED_FROM_TODAY = 56
+NUMBER_OF_DAYS_TO_BE_REMOVED_FROM_TODAY = 58
 NDIGITS = 2
 WEEK = 7  # in days
 DAY = 1  # in days
 HOUR = 1  # in hours
-ACTIVE = "active"
-INACTIVE = "inactive"
 BATCH_SIZE = 2 if DEBUG else 5000
 STORE_MONITOR_DATA = {
     STORE_STATUS_HISTORY: join(dirname(__file__), "../data/store_status_history.csv"),

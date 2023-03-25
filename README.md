@@ -39,6 +39,8 @@ To run the shell script, you may need to give it executable permission. This can
 chmod u+x run.sh
 ```
 
+Loom Video : https://www.loom.com/embed/6cb9f7c294cd40a3991c6545cbff6057
+
 ### Tech stack
 
 - python

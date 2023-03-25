@@ -14,6 +14,10 @@
 3. Change the environment flag in `docker-compose.yml` file for `IMPORT_CSV_TO_MONGODB` to true.
 4. Open the terminal and run `docker-compose up --build` command to build the Docker containers.
 5. Wait for around 3 minutes for all the CSV data to be imported into the MongoDB database.
+6. server will be running on http://api.localhost  
+7. on http://api.localhost/docs you can access swagger api
+8. hit http://api.localhost/trigger_report for **report_id**
+9. See progress http://api.localhost/get_report/report_id
 
 Once the above steps are completed, the development environment for the project is set up and ready to run.
 
@@ -40,6 +44,17 @@ chmod u+x run.sh
 ```
 
 Loom Video : https://www.loom.com/embed/6cb9f7c294cd40a3991c6545cbff6057
+
+
+Screenshots
+
+![img_6.png](./images/img_6.png)
+
+![img_5.png](./images/img_5.png)
+
+![img_4.png](./images/img_4.png)
+
+![img_3.png](./images/img_3.png)
 
 ### Tech stack
 

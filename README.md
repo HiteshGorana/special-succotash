@@ -1,10 +1,12 @@
-# HOW TO RUN
+# special succotash
 
-## Prerequisites
+## HOW TO RUN
+
+### Prerequisites
 - Docker
 - Docker-compose
 
-## Setup Instructions
+### Setup Instructions
 1. Clone the repository.
 2. Unzip the data.zip file in the same directory as data.zip.
 3. Change the environment flag in `docker-compose.yml` file for `IMPORT_CSV_TO_MONGODB` to true.
@@ -13,7 +15,7 @@
 
 Once the above steps are completed, the development environment for the project is set up and ready to run.
 
-## Running the project
+### Running the project
 To run the project, execute the following command:
 ```shell
 docker-compose up -build
